@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this dataset, please cite it as below."
+authors:
+- family-names: "Matthew"
+  given-names: "Vivek"
+  orcid: https://orcid.org/0009-0003-2627-7788
+title: "Unofficial BMRCL GTFS"
+version: 2026.06.26
+url: "https://github.com/Vonter/bmrcl-gtfs"
+date-released: 2026-06-26
+preferred-citation:
+  url: "https://github.com/Vonter/bmrcl-gtfs"
+  type: data
+  authors:
+  - family-names: "Matthew"
+    given-names: "Vivek"
+    orcid: "https://orcid.org/0009-0003-2627-7788"
+  title: "Unofficial BMRCL GTFS"

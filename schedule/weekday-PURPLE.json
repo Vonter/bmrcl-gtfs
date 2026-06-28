@@ -1,0 +1,68 @@
+{
+  "frequency": [
+    {
+      "from": "WHTM",
+      "toward": "CLGA",
+      "bands": [
+        {"start": "05:00", "end": "05:20", "headway": "20"},
+        {"start": "05:20", "end": "10:57", "headway": "10"},
+        {"start": "10:57", "end": "15:21", "headway": "8"},
+        {"start": "15:21", "end": "22:01", "headway": "10"},
+        {"start": "22:01", "end": "22:45", "headway": "15"}
+      ]
+    },
+    {
+      "from": "CLGA",
+      "toward": "WHTM",
+      "bands": [
+        {"start": "05:00", "end": "05:20", "headway": "20"},
+        {"start": "05:20", "end": "06:00", "headway": "15"},
+        {"start": "06:00", "end": "06:54", "headway": "11"},
+        {"start": "06:54", "end": "12:20", "headway": "10"},
+        {"start": "12:20", "end": "16:02", "headway": "8"},
+        {"start": "16:02", "end": "23:05", "headway": "10"}
+      ]
+    },
+    {
+      "from": "GDCP",
+      "toward": "MYRD",
+      "bands": [
+        {"start": "06:53", "end": "10:55", "headway": "5"},
+        {"start": "16:10", "end": "20:10", "headway": "5"}
+      ]
+    },
+    {
+      "from": "MYRD",
+      "toward": "GDCP",
+      "bands": [
+        {"start": "07:22", "end": "10:20", "headway": "5"},
+        {"start": "07:48", "end": "09:01", "headway": "10"},
+        {"start": "16:53", "end": "21:02", "headway": "5"}
+      ]
+    },
+    {
+      "from": "ITPL",
+      "toward": "MYRD",
+      "bands": [
+        {"start": "15:56", "end": "19:56", "headway": "5"}
+      ]
+    },
+    {
+      "from": "KGWA",
+      "toward": "WHTM",
+      "bands": [
+        {"start": "08:44", "end": "10:24", "headway": "3.3"}
+      ]
+    }
+  ],
+  "trips": [
+    {"from": "KGWA", "to": "BYPH", "times": ["07:55", "08:05", "08:48", "11:53"]},
+    {"from": "KGWA", "to": "ITPL", "times": ["08:58", "09:07", "09:18", "09:28", "09:39", "09:49", "10:00", "10:10", "10:21"]},
+    {"from": "KGWA", "to": "WHTM", "times": ["10:39", "10:50", "11:00", "11:11", "11:22", "11:43"]},
+    {"from": "BYPH", "to": "MYRD", "times": ["16:14"]},
+    {"from": "BYPH", "to": "KGWA", "times": ["17:36", "17:46", "18:27", "18:37"]},
+    {"from": "KGWA", "to": "BYPH", "times": ["18:03", "18:13"]},
+    {"from": "KGWA", "to": "MAGR", "times": ["18:54", "19:04"]},
+    {"from": "MAGR", "to": "CLGA", "times": ["19:04", "19:14"]}
+  ]
+}

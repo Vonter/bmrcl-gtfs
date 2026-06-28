@@ -1,0 +1,47 @@
+{
+  "frequency": [
+    {
+      "from": "RVR",
+      "toward": "BMSD",
+      "bands": [
+        {"start": "05:05", "end": "05:35", "headway": "30"},
+        {"start": "05:35", "end": "06:00", "headway": "25"},
+        {"start": "06:00", "end": "06:40", "headway": "20"},
+        {"start": "06:40", "end": "06:56", "headway": "16"},
+        {"start": "06:56", "end": "07:07", "headway": "11"},
+        {"start": "07:07", "end": "08:27", "headway": "10"},
+        {"start": "08:27", "end": "09:23", "headway": "8"},
+        {"start": "09:23", "end": "10:33", "headway": "7"},
+        {"start": "10:33", "end": "11:05", "headway": "8"},
+        {"start": "11:05", "end": "16:45", "headway": "10"},
+        {"start": "16:45", "end": "18:58", "headway": "7"},
+        {"start": "18:58", "end": "20:34", "headway": "8"},
+        {"start": "20:34", "end": "21:34", "headway": "10"},
+        {"start": "21:34", "end": "21:45", "headway": "11"},
+        {"start": "21:45", "end": "22:20", "headway": "12"},
+        {"start": "22:20", "end": "22:40", "headway": "20"},
+        {"start": "22:40", "end": "23:55", "headway": "25"}
+      ]
+    },
+    {
+      "from": "BMSD",
+      "toward": "RVR",
+      "bands": [
+        {"start": "05:05", "end": "05:35", "headway": "30"},
+        {"start": "05:35", "end": "06:00", "headway": "20"},
+        {"start": "06:00", "end": "06:20", "headway": "20"},
+        {"start": "06:20", "end": "07:50", "headway": "10"},
+        {"start": "07:50", "end": "08:46", "headway": "8"},
+        {"start": "08:46", "end": "09:49", "headway": "7"},
+        {"start": "09:49", "end": "10:29", "headway": "8"},
+        {"start": "10:29", "end": "16:09", "headway": "10"},
+        {"start": "16:09", "end": "18:29", "headway": "7"},
+        {"start": "18:29", "end": "19:57", "headway": "8"},
+        {"start": "19:57", "end": "20:57", "headway": "10"},
+        {"start": "20:57", "end": "22:33", "headway": "12"},
+        {"start": "22:33", "end": "22:42", "headway": "9"}
+      ]
+    }
+  ],
+  "trips": []
+}

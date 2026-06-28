@@ -1,0 +1,31 @@
+{
+  "frequency": [
+    {
+      "from": "RVR",
+      "toward": "BMSD",
+      "bands": [
+        {"start": "06:00", "end": "06:25", "headway": "20"},
+        {"start": "06:25", "end": "07:05", "headway": "20"},
+        {"start": "07:05", "end": "07:20", "headway": "15"},
+        {"start": "07:20", "end": "07:31", "headway": "11"},
+        {"start": "07:31", "end": "20:31", "headway": "10"},
+        {"start": "20:31", "end": "22:07", "headway": "12"},
+        {"start": "22:07", "end": "22:25", "headway": "18"},
+        {"start": "22:25", "end": "23:05", "headway": "20"},
+        {"start": "23:05", "end": "23:55", "headway": "25"}
+      ]
+    },
+    {
+      "from": "BMSD",
+      "toward": "RVR",
+      "bands": [
+        {"start": "06:00", "end": "06:40", "headway": "20"},
+        {"start": "06:40", "end": "06:55", "headway": "15"},
+        {"start": "06:55", "end": "19:55", "headway": "10"},
+        {"start": "19:55", "end": "22:31", "headway": "12"},
+        {"start": "22:31", "end": "22:42", "headway": "11"}
+      ]
+    }
+  ],
+  "trips": []
+}

@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BMRCL Schedule Visualizer</title>
+<style>
+  :root {
+    --green: #009933;
+    --purple: #8c2877;
+    --yellow: #e6b800;
+    --border: #d0d4da;
+    --bg: #f4f6f8;
+    --header-bg: #f6c89a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1c2127;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header.topbar {
+    flex: none;
+    z-index: 10;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+  }
+  header.topbar h1 {
+    font-size: 16px;
+    margin: 0 12px 0 0;
+    white-space: nowrap;
+  }
+  .control { display: flex; align-items: center; gap: 6px; }
+  .control label { font-size: 13px; font-weight: 600; color: #4a5159; }
+  select, button {
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+  }
+  button:hover { background: #f0f2f5; }
+  button.primary { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  button.primary:hover { background: #1660c9; }
+  .spacer { flex: 1; }
+  #status { font-size: 12px; color: #6b7280; min-width: 80px; }
+
+  main {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  .pane {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .pane-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: #fafbfc;
+  }
+  .pane-head h2 { font-size: 13px; margin: 0; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; white-space: nowrap; }
+  .pane-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }
+
+  .filter {
+    flex: 1;
+    min-width: 100px;
+    font-size: 13px;
+    padding: 6px 10px 6px 28px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239aa1a9' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 8px center;
+  }
+
+  .line-title {
+    text-align: center;
+    font-weight: 700;
+    font-size: 17px;
+    margin: 4px 0 14px;
+  }
+
+  .sections { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .sections { grid-template-columns: 1fr; } }
+
+  .section {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(16,24,40,.05);
+  }
+  .section-head {
+    padding: 9px 8px 9px 12px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-left: 4px solid rgba(255,255,255,.5);
+  }
+  .section-head .route { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+  .section-head .from { font-weight: 700; font-size: 14px; }
+  .section-head .from .lead { font-weight: 500; opacity: .8; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .section-head .to { font-size: 11.5px; font-weight: 600; opacity: .9; display: flex; align-items: center; gap: 4px; }
+  .section-head .to .arrow { opacity: .8; }
+  .section-head .del-sec {
+    flex: none;
+    background: rgba(255,255,255,.2);
+    border: none;
+    color: #fff;
+    width: 22px; height: 22px;
+    line-height: 1;
+    font-size: 14px;
+    border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .section-head .del-sec:hover { background: rgba(255,255,255,.38); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 3px 6px; text-align: center; }
+  th { background: #f1f3f5; font-weight: 600; }
+  td input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: center;
+    font: inherit;
+    padding: 3px 2px;
+  }
+  td input:focus { outline: 2px solid #1a73e8; outline-offset: -2px; border-radius: 3px; }
+  td.del { width: 26px; padding: 0; }
+  td.del button { border: none; background: transparent; color: #c0392b; font-size: 14px; padding: 2px 4px; }
+  td.del button:hover { background: #fde7e4; }
+  .add-row td { padding: 2px; }
+  .add-row button { width: 100%; border: none; background: #eef6ee; color: #166534; border-radius: 0; padding: 4px; }
+  .add-row button:hover { background: #dcefdc; }
+
+  .section-actions { margin-top: 14px; display: flex; gap: 8px; align-items: center; }
+  .add-section input {
+    font-size: 13px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; width: 130px;
+  }
+
+  .img-wrap { text-align: center; }
+  .img-wrap img { max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 4px; }
+  .img-missing { color: #9aa1a9; font-size: 13px; padding: 30px 12px; text-align: center; }
+
+  /* Raw JSON editor */
+  #rawWrap { display: none; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+  #rawWrap textarea {
+    width: 100%; min-height: 320px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px; border: 1px solid var(--border); border-radius: 6px; padding: 10px;
+  }
+  #rawWrap .err { color: #c0392b; font-size: 12px; min-height: 16px; margin-top: 6px; }
+  .hint { font-size: 12px; color: #6b7280; margin: 8px 0 0; }
+
+  #folderState { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  #folderState.on { color: #166534; }
+  #folderState.off { color: #b25f00; }
+
+  #overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(20, 24, 30, .55);
+    display: none; align-items: center; justify-content: center;
+  }
+  #overlay.show { display: flex; }
+  .modal {
+    background: #fff; border-radius: 10px; padding: 24px 26px; max-width: 440px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.3); text-align: center;
+  }
+  .modal h2 { margin: 0 0 8px; font-size: 18px; }
+  .modal p { margin: 0 0 18px; font-size: 13.5px; color: #4a5159; line-height: 1.5; }
+  .modal code { background: #f1f3f5; padding: 1px 5px; border-radius: 4px; }
+  .modal .row { display: flex; gap: 10px; justify-content: center; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <h1>BMRCL Schedule Visualizer</h1>
+  <div class="control">
+    <label for="daySel">Day</label>
+    <select id="daySel">
+      <option value="weekday">Weekday (Tue–Fri)</option>
+      <option value="monday">Monday</option>
+      <option value="saturday">Saturday</option>
+      <option value="sunday">Sunday</option>
+    </select>
+  </div>
+  <div class="control">
+    <label for="lineSel">Line</label>
+    <select id="lineSel">
+      <option value="GREEN">Green</option>
+      <option value="PURPLE">Purple</option>
+      <option value="YELLOW">Yellow</option>
+    </select>
+  </div>
+  <span class="spacer"></span>
+  <span id="folderState" class="off">Folder: not connected</span>
+  <button id="rawToggle">Edit raw JSON</button>
+  <button id="saveBtn" class="primary">Save JSON</button>
+  <span id="status"></span>
+</header>
+
+<main>
+  <section class="pane">
+    <div class="pane-head">
+      <h2>Schedule</h2>
+      <input id="filterInput" class="filter" type="search" placeholder="Filter by station name…" />
+      <button id="reloadBtn" title="Discard edits and reload from disk">Reload</button>
+    </div>
+    <div class="pane-body">
+      <div id="editor"></div>
+      <div id="rawWrap">
+        <textarea id="rawText" spellcheck="false"></textarea>
+        <div class="err" id="rawErr"></div>
+        <button id="rawApply">Apply to table</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane">
+    <div class="pane-head">
+      <h2>BMRCL Reference Image</h2>
+      <span id="imgName" style="font-size:11px;color:#9aa1a9;"></span>
+    </div>
+    <div class="pane-body img-wrap" id="imageBox"></div>
+  </section>
+</main>
+
+<div id="overlay">
+  <div class="modal">
+    <h2>Connect the project folder</h2>
+    <p>Select the <strong>repository root</strong> (the <code>bmrcl-gtfs</code> folder)
+       and allow read &amp; write. The tool then reads the schedules, station names and
+       images straight from disk and saves edits in place — no matter how it is served.</p>
+    <div class="row">
+      <button id="overlaySkip">Skip (use HTTP / download)</button>
+      <button id="overlayConnect" class="primary">Connect folder</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// UI day -> { schedule file prefix, image schedule slug }
+const DAY_MAP = {
+  weekday:  { file: "weekday",  imgSlug: "tuesday-to-friday-timetable" },
+  monday:   { file: "monday",   imgSlug: "monday-timetable" },
+  saturday: { file: "saturday", imgSlug: "saturday-timetable" },
+  sunday:   { file: "sunday",   imgSlug: "sunday-timetable" },
+};
+const LINE_SLUG = { GREEN: "green", PURPLE: "purple", YELLOW: "yellow" };
+const LINE_COLOR = { GREEN: "var(--green)", PURPLE: "var(--purple)", YELLOW: "var(--yellow)" };
+
+const $ = (id) => document.getElementById(id);
+const state = {
+  data: { frequency: [], trips: [] },
+  // frequency: [ { from, toward, bands: [ {start,end,headway}, ... ] }, ... ]
+  //   combined section headways ("From X" / "X towards Y"); nested, residual-filled.
+  // trips:     [ { from, to, times: ["HH:MM", ...] }, ... ]
+  //   explicit physical turn-back services ("SHORT LOOPS").
+  stopNames: {},     // code -> name
+  imageIndex: null,  // map "schedule-slug-line-slug" -> filename
+  rootHandle: null,  // File System Access handle for the repo root
+  imageURL: null,    // object URL of the currently shown image (revoked on change)
+};
+
+// Resolve "schedule/foo.json" against the connected root folder handle.
+async function resolveFileHandle(path, opts = {}) {
+  const parts = path.split("/").filter(Boolean);
+  let dir = state.rootHandle;
+  for (let i = 0; i < parts.length - 1; i++) {
+    dir = await dir.getDirectoryHandle(parts[i], { create: !!opts.create });
+  }
+  return dir.getFileHandle(parts[parts.length - 1], { create: !!opts.create });
+}
+async function readTextFromRoot(path) {
+  const fh = await resolveFileHandle(path);
+  return (await fh.getFile()).text();
+}
+
+function setStatus(msg, isError) {
+  const el = $("status");
+  el.textContent = msg || "";
+  el.style.color = isError ? "#c0392b" : "#6b7280";
+}
+
+// ---- minimal CSV parse for stops.txt (handles quoted fields) ----
+function parseCsvLine(line) {
+  const out = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = false;
+      } else cur += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ",") { out.push(cur); cur = ""; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+async function loadStopNames() {
+  try {
+    let text;
+    if (state.rootHandle) {
+      text = await readTextFromRoot("intermediate/stops.txt");
+    } else {
+      const res = await fetch("../intermediate/stops.txt");
+      if (!res.ok) throw new Error(res.status);
+      text = await res.text();
+    }
+    const lines = text.trim().split(/\r?\n/);
+    const header = parseCsvLine(lines[0]);
+    const ni = header.indexOf("stop_name");
+    const ii = header.indexOf("stop_id");
+    const map = {};
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCsvLine(lines[i]);
+      if (cols[ii]) map[cols[ii]] = cols[ni];
+    }
+    state.stopNames = map;
+  } catch (e) {
+    console.warn("Could not load stop names:", e);
+    state.stopNames = {};
+  }
+}
+
+const stopName = (code) => state.stopNames[code] || code;
+const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function indexKeyFor(name) {
+  // strip "-<timestamp>.<ext>" (or just the extension) to get the "schedule-line" key
+  return name.replace(/-\d{8}T\d{6}Z\.[a-z]+$/i, "").replace(/\.[a-z]+$/i, "");
+}
+
+// Discover images: from the connected folder, else the HTTP directory listing.
+async function loadImageIndex() {
+  const index = {};
+  try {
+    if (state.rootHandle) {
+      const imagesDir = await state.rootHandle.getDirectoryHandle("images");
+      for await (const [name, handle] of imagesDir.entries()) {
+        if (handle.kind === "file" && /\.(png|jpe?g|webp|gif)$/i.test(name)) {
+          index[indexKeyFor(name)] = name;
+        }
+      }
+      state.imageIndex = index;
+      return;
+    }
+    const res = await fetch("../images/");
+    if (!res.ok) throw new Error(res.status);
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    doc.querySelectorAll("a[href]").forEach((a) => {
+      const name = decodeURIComponent(a.getAttribute("href")).replace(/\/$/, "").split("/").pop();
+      if (/\.(png|jpe?g|webp|gif)$/i.test(name)) index[indexKeyFor(name)] = name;
+    });
+    state.imageIndex = index;
+  } catch (e) {
+    console.warn("Could not list images directory:", e);
+    state.imageIndex = null;
+  }
+}
+
+// Resolve a usable <img> src for a discovered image filename.
+async function imageURL(name) {
+  if (state.imageURL) { URL.revokeObjectURL(state.imageURL); state.imageURL = null; }
+  if (state.rootHandle) {
+    const imagesDir = await state.rootHandle.getDirectoryHandle("images");
+    const fh = await imagesDir.getFileHandle(name);
+    state.imageURL = URL.createObjectURL(await fh.getFile());
+    return state.imageURL;
+  }
+  return `../images/${encodeURIComponent(name)}`;
+}
+
+function currentImageName() {
+  const day = $("daySel").value, line = $("lineSel").value;
+  const key = `${DAY_MAP[day].imgSlug}-${LINE_SLUG[line]}`;
+  if (state.imageIndex && state.imageIndex[key]) return state.imageIndex[key];
+  return null; // unknown extension/timestamp without a listing
+}
+
+async function renderImage() {
+  const box = $("imageBox");
+  const name = currentImageName();
+  box.innerHTML = "";
+  if (name) {
+    const img = document.createElement("img");
+    img.alt = name;
+    img.onerror = () => { box.innerHTML = `<div class="img-missing">Image not found:<br>${name}</div>`; };
+    img.src = await imageURL(name);
+    box.appendChild(img);
+    $("imgName").textContent = name;
+  } else {
+    box.innerHTML = `<div class="img-missing">No reference image found for this day/line.<br>
+      Connect the project folder, or serve the repo over HTTP
+      (<code>python3 -m http.server</code>) so the images directory can be listed.</div>`;
+    $("imgName").textContent = "";
+  }
+}
+
+// ---- schedule JSON load / render ----
+function scheduleFileName() {
+  return `${DAY_MAP[$("daySel").value].file}-${$("lineSel").value}.json`;
+}
+
+async function loadSchedule() {
+  const file = scheduleFileName();
+  try {
+    let text;
+    if (state.rootHandle) {
+      text = await readTextFromRoot(`schedule/${file}`);
+    } else {
+      const res = await fetch(`../schedule/${file}?_=${Date.now()}`);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      text = await res.text();
+    }
+    state.data = JSON.parse(text);
+    setStatus("Loaded " + file);
+  } catch (e) {
+    state.data = { frequency: [], trips: [] };
+    const hint = state.rootHandle ? "" : " — connect the project folder, or serve from the repo root";
+    setStatus(`Could not load ${file}${hint}`, true);
+    console.warn("loadSchedule failed:", e);
+  }
+  renderEditor();
+  syncRaw();
+}
+
+// Ensure the in-memory schedule always has the expected shape.
+function normalizeData() {
+  if (!state.data || typeof state.data !== "object" || Array.isArray(state.data)) {
+    state.data = { frequency: [], trips: [] };
+  }
+  if (!Array.isArray(state.data.frequency)) state.data.frequency = [];
+  if (!Array.isArray(state.data.trips)) state.data.trips = [];
+}
+
+function matchesFilter(row, q) {
+  if (!q) return true;
+  const ends = [row.from, row.toward, row.to].filter(Boolean);
+  return ends.some((c) => stopName(c).toLowerCase().includes(q) || c.toLowerCase().includes(q));
+}
+
+function renderEditor() {
+  normalizeData();
+  const root = $("editor");
+  root.innerHTML = "";
+
+  const title = document.createElement("div");
+  title.className = "line-title";
+  const line = $("lineSel").value;
+  title.style.color = LINE_COLOR[line];
+  title.textContent = `${line} LINE — ${$("daySel").selectedOptions[0].textContent}`;
+  root.appendChild(title);
+
+  const q = (state.filter || "").trim().toLowerCase();
+  const freq = state.data.frequency, trips = state.data.trips;
+  const total = freq.length + trips.length;
+
+  // ---- Frequency sections (combined / nested "towards" headways) ----
+  root.appendChild(groupLabel("Frequency — combined section headways (nested)"));
+  const freqGrid = document.createElement("div");
+  freqGrid.className = "sections";
+  root.appendChild(freqGrid);
+  const freqShown = freq.filter((r) => matchesFilter(r, q));
+  freqShown.forEach((row) => freqGrid.appendChild(renderFreqSection(row)));
+  if (freq.length === 0) freqGrid.appendChild(emptyNote("No frequency sections. Add one below."));
+  else if (freqShown.length === 0) freqGrid.appendChild(emptyNote(`No frequency sections match “${q}”.`));
+
+  // ---- Trip sections (explicit physical turn-back services) ----
+  root.appendChild(groupLabel("Trips — explicit turn-back services (short loops)"));
+  const tripGrid = document.createElement("div");
+  tripGrid.className = "sections";
+  root.appendChild(tripGrid);
+  const tripShown = trips.filter((r) => matchesFilter(r, q));
+  tripShown.forEach((row) => tripGrid.appendChild(renderTripSection(row)));
+  if (trips.length === 0) tripGrid.appendChild(emptyNote("No turn-back trips."));
+  else if (tripShown.length === 0) tripGrid.appendChild(emptyNote(`No trips match “${q}”.`));
+
+  if (total === 0) setStatus("Empty schedule — add a section below.");
+
+  // ---- add-section controls ----
+  const actions = document.createElement("div");
+  actions.className = "section-actions add-section";
+  actions.style.flexWrap = "wrap";
+  actions.innerHTML = `
+    <input id="newFreqFrom" placeholder="from (e.g. KGWA)" style="width:150px" />
+    <input id="newFreqToward" placeholder="toward (e.g. WHTM)" style="width:150px" />
+    <button id="addFreqBtn">+ Frequency section</button>
+    <span style="flex-basis:100%;height:0"></span>
+    <input id="newTripFrom" placeholder="from (e.g. KGWA)" style="width:150px" />
+    <input id="newTripTo" placeholder="to (e.g. BYPH)" style="width:150px" />
+    <button id="addTripBtn">+ Trip</button>`;
+  root.appendChild(actions);
+  $("addFreqBtn").onclick = addFreqSection;
+  $("addTripBtn").onclick = addTripSection;
+}
+
+function groupLabel(text) {
+  const d = document.createElement("div");
+  d.className = "hint";
+  d.style.cssText = "grid-column:1/-1;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px;color:#4a5159;";
+  d.textContent = text;
+  return d;
+}
+
+function emptyNote(text) {
+  const p = document.createElement("p");
+  p.className = "hint";
+  p.style.gridColumn = "1 / -1";
+  p.textContent = text;
+  return p;
+}
+
+function sectionHead(line, fromCode, leadWord, arrow, toCode, badge, onDelete) {
+  const head = document.createElement("div");
+  head.className = "section-head";
+  head.style.background = LINE_COLOR[line];
+  const route = document.createElement("div");
+  route.className = "route";
+  route.innerHTML =
+    `<span class="from"><span class="lead">${badge} · From</span> ${escapeHtml(stopName(fromCode))}</span>` +
+    `<span class="to"><span class="arrow">${arrow}</span> ${escapeHtml(leadWord)} ${escapeHtml(stopName(toCode))}</span>`;
+  head.appendChild(route);
+  const delSec = document.createElement("button");
+  delSec.className = "del-sec";
+  delSec.textContent = "×";
+  delSec.title = "Delete this section";
+  delSec.onclick = onDelete;
+  head.appendChild(delSec);
+  return head;
+}
+
+function renderFreqSection(row) {
+  const line = $("lineSel").value;
+  if (!Array.isArray(row.bands)) row.bands = [];
+  const wrap = document.createElement("div");
+  wrap.className = "section";
+  wrap.appendChild(sectionHead(line, row.from, "towards", "→", row.toward, "FREQ", () => {
+    state.data.frequency.splice(state.data.frequency.indexOf(row), 1);
+    renderEditor(); syncRaw();
+  }));
+
+  const table = document.createElement("table");
+  table.innerHTML = `<thead><tr><th>FROM</th><th>TO</th><th>Frequency</th><th></th></tr></thead>`;
+  const tbody = document.createElement("tbody");
+  row.bands.forEach((band, idx) => {
+    const tr = document.createElement("tr");
+    tr.appendChild(cellInput(band, "start", "05:00"));
+    tr.appendChild(cellInput(band, "end", "23:00"));
+    tr.appendChild(cellInput(band, "headway", "10"));
+    tr.appendChild(delCell(() => { row.bands.splice(idx, 1); renderEditor(); syncRaw(); }));
+    tbody.appendChild(tr);
+  });
+  tbody.appendChild(addRow(4, () => { row.bands.push({ start: "", end: "", headway: "" }); renderEditor(); syncRaw(); }));
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function renderTripSection(row) {
+  const line = $("lineSel").value;
+  const useBands = Array.isArray(row.bands) && !Array.isArray(row.times);
+  if (!useBands && !Array.isArray(row.times)) row.times = [];
+  const wrap = document.createElement("div");
+  wrap.className = "section";
+  wrap.appendChild(sectionHead(line, row.from, "to", "→", row.to, "TRIP", () => {
+    state.data.trips.splice(state.data.trips.indexOf(row), 1);
+    renderEditor(); syncRaw();
+  }));
+
+  const table = document.createElement("table");
+  const tbody = document.createElement("tbody");
+  if (useBands) {
+    table.innerHTML = `<thead><tr><th>FROM</th><th>TO</th><th>Frequency</th><th></th></tr></thead>`;
+    row.bands.forEach((band, idx) => {
+      const tr = document.createElement("tr");
+      tr.appendChild(cellInput(band, "start", "05:00"));
+      tr.appendChild(cellInput(band, "end", "23:00"));
+      tr.appendChild(cellInput(band, "headway", "10"));
+      tr.appendChild(delCell(() => { row.bands.splice(idx, 1); renderEditor(); syncRaw(); }));
+      tbody.appendChild(tr);
+    });
+    tbody.appendChild(addRow(4, () => { row.bands.push({ start: "", end: "", headway: "" }); renderEditor(); syncRaw(); }));
+  } else {
+    table.innerHTML = `<thead><tr><th>Departure</th><th></th></tr></thead>`;
+    row.times.forEach((_, idx) => {
+      const tr = document.createElement("tr");
+      tr.appendChild(arrayCellInput(row.times, idx, "08:30"));
+      tr.appendChild(delCell(() => { row.times.splice(idx, 1); renderEditor(); syncRaw(); }));
+      tbody.appendChild(tr);
+    });
+    tbody.appendChild(addRow(2, () => { row.times.push(""); renderEditor(); syncRaw(); }));
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function delCell(onClick) {
+  const td = document.createElement("td");
+  td.className = "del";
+  const b = document.createElement("button");
+  b.textContent = "×";
+  b.title = "Delete row";
+  b.onclick = onClick;
+  td.appendChild(b);
+  return td;
+}
+
+function addRow(colSpan, onClick) {
+  const tr = document.createElement("tr");
+  tr.className = "add-row";
+  const td = document.createElement("td");
+  td.colSpan = colSpan;
+  const btn = document.createElement("button");
+  btn.textContent = "+ Add row";
+  btn.onclick = onClick;
+  td.appendChild(btn);
+  tr.appendChild(td);
+  return tr;
+}
+
+function cellInput(obj, field, placeholder) {
+  const td = document.createElement("td");
+  const inp = document.createElement("input");
+  inp.value = obj[field] ?? "";
+  inp.placeholder = placeholder;
+  inp.oninput = () => { obj[field] = inp.value; syncRaw(); };
+  td.appendChild(inp);
+  return td;
+}
+
+function arrayCellInput(arr, idx, placeholder) {
+  const td = document.createElement("td");
+  const inp = document.createElement("input");
+  inp.value = arr[idx] ?? "";
+  inp.placeholder = placeholder;
+  inp.oninput = () => { arr[idx] = inp.value; syncRaw(); };
+  td.appendChild(inp);
+  return td;
+}
+
+function addFreqSection() {
+  const from = $("newFreqFrom").value.trim().toUpperCase();
+  const toward = $("newFreqToward").value.trim().toUpperCase();
+  if (!/^[A-Z0-9]+$/.test(from) || !/^[A-Z0-9]+$/.test(toward)) {
+    setStatus("Enter from and toward as stop codes", true);
+    return;
+  }
+  state.data.frequency.push({ from, toward, bands: [{ start: "", end: "", headway: "" }] });
+  renderEditor(); syncRaw();
+}
+
+function addTripSection() {
+  const from = $("newTripFrom").value.trim().toUpperCase();
+  const to = $("newTripTo").value.trim().toUpperCase();
+  if (!/^[A-Z0-9]+$/.test(from) || !/^[A-Z0-9]+$/.test(to)) {
+    setStatus("Enter from and to as stop codes", true);
+    return;
+  }
+  state.data.trips.push({ from, to, times: [""] });
+  renderEditor(); syncRaw();
+}
+
+// ---- raw JSON sync ----
+function syncRaw() {
+  if ($("rawWrap").style.display === "block") {
+    $("rawText").value = JSON.stringify(state.data, null, 2);
+  }
+}
+function toggleRaw() {
+  const w = $("rawWrap");
+  const showing = w.style.display === "block";
+  w.style.display = showing ? "none" : "block";
+  $("rawToggle").textContent = showing ? "Edit raw JSON" : "Hide raw JSON";
+  if (!showing) $("rawText").value = JSON.stringify(state.data, null, 2);
+}
+function applyRaw() {
+  try {
+    const parsed = JSON.parse($("rawText").value);
+    state.data = parsed;
+    $("rawErr").textContent = "";
+    renderEditor();
+    setStatus("Applied raw JSON");
+  } catch (e) {
+    $("rawErr").textContent = "Invalid JSON: " + e.message;
+  }
+}
+
+// ---- save ----
+function serialize() {
+  return JSON.stringify(state.data, null, 2) + "\n";
+}
+
+async function saveJSON() {
+  const file = scheduleFileName();
+  const content = serialize();
+
+  // 1) If the project folder is connected, write directly into schedule/.
+  if (state.rootHandle) {
+    try {
+      const fh = await resolveFileHandle(`schedule/${file}`, { create: true });
+      const w = await fh.createWritable();
+      await w.write(content);
+      await w.close();
+      setStatus("Saved schedule/" + file);
+      return;
+    } catch (e) {
+      setStatus("Save failed: " + e.message, true);
+      return;
+    }
+  }
+
+  // 2) File System Access API: pick a file (Chrome/Edge).
+  if (window.showSaveFilePicker) {
+    try {
+      const fh = await window.showSaveFilePicker({
+        suggestedName: file,
+        types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+      });
+      const w = await fh.createWritable();
+      await w.write(content);
+      await w.close();
+      setStatus("Saved " + file);
+      return;
+    } catch (e) {
+      if (e.name === "AbortError") return;
+      // fall through to download
+    }
+  }
+
+  // 3) Fallback: download.
+  const blob = new Blob([content], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = file;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus("Downloaded " + file + " (move it into schedule/)");
+}
+
+// ---- folder connection (File System Access API + IndexedDB persistence) ----
+const IDB_NAME = "bmrcl-viz", IDB_STORE = "handles", IDB_KEY = "scheduleDir";
+
+function idb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSet(key, val) {
+  const db = await idb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    tx.objectStore(IDB_STORE).put(val, key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readonly");
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function setFolderState(connected) {
+  const el = $("folderState");
+  el.className = connected ? "on" : "off";
+  el.textContent = connected ? "Folder: connected" : "Folder: not connected";
+}
+
+// Re-read everything once a folder handle becomes available.
+async function reloadFromHandle() {
+  await Promise.all([loadStopNames(), loadImageIndex()]);
+  await loadSchedule();
+  renderImage();
+}
+
+// Prompt the user to pick the project root folder (requires a user gesture).
+async function connectFolder() {
+  if (!window.showDirectoryPicker) {
+    setStatus("Folder access not supported — saves use download instead", true);
+    hideOverlay();
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ id: "bmrcl-root", mode: "readwrite" });
+    state.rootHandle = handle;
+    try { await idbSet(IDB_KEY, handle); } catch (e) { /* persistence optional */ }
+    setFolderState(true);
+    setStatus("Folder connected — reading from disk");
+    hideOverlay();
+    await reloadFromHandle();
+  } catch (e) { /* cancelled — leave overlay open */ }
+}
+
+// On load, try to silently restore a previously connected folder.
+async function restoreFolder() {
+  if (!window.showDirectoryPicker) return false;
+  let handle;
+  try { handle = await idbGet(IDB_KEY); } catch (e) { return false; }
+  if (!handle) return false;
+  try {
+    const opts = { mode: "readwrite" };
+    if ((await handle.queryPermission(opts)) === "granted") {
+      state.rootHandle = handle;
+      setFolderState(true);
+      setStatus("Folder reconnected — reading from disk");
+      return true;
+    }
+  } catch (e) { /* fall through to re-prompt */ }
+  return false;
+}
+
+function showOverlay() { $("overlay").classList.add("show"); }
+function hideOverlay() { $("overlay").classList.remove("show"); }
+
+// ---- events ----
+function onSelectionChange() {
+  loadSchedule();
+  renderImage();
+}
+
+async function init() {
+  $("daySel").onchange = onSelectionChange;
+  $("lineSel").onchange = onSelectionChange;
+  $("saveBtn").onclick = saveJSON;
+  $("reloadBtn").onclick = loadSchedule;
+  $("rawToggle").onclick = toggleRaw;
+  $("rawApply").onclick = applyRaw;
+  $("filterInput").oninput = (e) => { state.filter = e.target.value; renderEditor(); };
+
+  $("folderState").onclick = connectFolder;       // click status to (re)connect
+  $("overlayConnect").onclick = connectFolder;
+  $("overlaySkip").onclick = hideOverlay;
+
+  // Connect the folder on load: restore silently if possible, else prompt now.
+  let restored = false;
+  if (window.showDirectoryPicker) {
+    restored = await restoreFolder();
+  } else {
+    setFolderState(false);
+    $("folderState").textContent = "Folder: download mode";
+  }
+
+  // Initial load uses the restored handle if available, else relative fetch.
+  await Promise.all([loadStopNames(), loadImageIndex()]);
+  await loadSchedule();
+  renderImage();
+
+  if (window.showDirectoryPicker && !restored) showOverlay();
+}
+
+init();
+</script>
+</body>
+</html>

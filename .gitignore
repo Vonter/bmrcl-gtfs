@@ -1,0 +1,7 @@
+debug.log
+debug/
+intermediate/**txt
+gtfs/**txt
+gtfs/intermediate_bmrcl.zip
+tools
+__pycache__
