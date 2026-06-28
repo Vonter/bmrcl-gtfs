@@ -14,7 +14,7 @@ A variant of the GTFS where schedule information is recorded as frequency-based 
 
 ## Visualization
 
-Visualize the routes, stops and timetables in the GTFS dataset, on a web browser, using [Transit Lens](https://app.transit-lens.com/).
+Visualize the routes, stops and timetables in the GTFS dataset, on a web browser, using [Transit Lens](https://transit-lens.com/open?feed=https://raw.githubusercontent.com/Vonter/bmrcl-gtfs/main/gtfs/bmrcl.zip).
 
 ## Validations
 
