@@ -1,0 +1,9 @@
+{
+  "remove_trips": [
+    {"from": "KGWA", "to": "WHTM", "times": ["09:03"]}
+  ],
+  "add_trips": [
+    {"from": "BYPH", "to": "KGWA", "times": ["09:01"]},
+    {"from": "GDCP", "to": "CLGA", "times": ["10:25"]}
+  ]
+}

@@ -30,7 +30,7 @@ Downloads the timetable images from the [official BMRCL website](https://www.bmr
 
 ### 2. Transcribe schedules ([schedule/](schedule/))
 
-The timetable images are transcribed into one JSON file per schedule and line, named `<prefix>-<LINE>.json` (e.g. [weekday-PURPLE.json](schedule/weekday-PURPLE.json)). Each file records service as `frequency` bands (headway windows over a section) and explicit `trips` (turn-back services with exact times or headway bands). This transcribe step can be done with the help of the browser-based tool available in [viz/index.html](viz/index.html).
+The timetable images are transcribed into one JSON file per schedule and line, named `<prefix>-<LINE>.json` (e.g. [weekday-PURPLE.json](schedule/weekday-PURPLE.json)). Each file records service as `frequency` bands (headway windows over a section) and explicit `trips` (turn-back services with exact times or headway bands). This transcribe step can be done with the help of the browser-based tool available in [viz/index.html](viz/index.html). Observations that add or remove trips without altering the source transcription live in an optional `<prefix>-<LINE>-manual-corrections.json` companion file.
 
 ### 3. Fetch spatial data ([osm.py](osm.py))
 

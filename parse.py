@@ -34,7 +34,7 @@ PREFIX_TO_SERVICE_ID = {
 }
 
 # Minimum separation (seconds) between two same-direction trains sharing track on
-# one line/service. Two trains closer than this are physically implausible, so the
+# one line/service. Two trains this close or closer are physically implausible, so the
 # de-bunch pass drops the surplus one (favouring explicit operator trips over
 # synthesised frequency trains). Kept below the tightest published headway
 # (Purple KGWA→WHTM at 3.3 min = 198 s) so genuine high-frequency service stands.
@@ -98,7 +98,7 @@ def _debunch_schedule(schedule_data):
 
         retained = [e for e in entries if e['explicit']]
         for entry in sorted((e for e in entries if not e['explicit']), key=lambda e: e['_phase']):
-            if any(_spans_overlap(entry, r) and abs(entry['_phase'] - r['_phase']) < MIN_HEADWAY_SECONDS
+            if any(_spans_overlap(entry, r) and abs(entry['_phase'] - r['_phase']) <= MIN_HEADWAY_SECONDS
                    for r in retained):
                 dropped += 1
                 continue
@@ -108,7 +108,7 @@ def _debunch_schedule(schedule_data):
     for entry in kept:
         entry.pop('_phase', None)
     if dropped:
-        logging.info(f"De-bunching dropped {dropped} surplus frequency trains (< {MIN_HEADWAY_SECONDS}s headway)")
+        logging.info(f"De-bunching dropped {dropped} surplus frequency trains (<= {MIN_HEADWAY_SECONDS}s headway)")
     return kept
 
 
@@ -135,7 +135,9 @@ def parse_schedule():
     ``"frequency"`` rows give nested combined section headways: each section adds
     only the residual trains beyond what the larger sections through it supply
     (``from`` = measuring point, ``toward`` = direction). ``"trips"`` rows are
-    explicit turn-back services with exact ``times`` or headway ``bands``.
+    explicit turn-back services with exact ``times`` or headway ``bands``. A companion
+    ``<schedule>-manual-corrections.json`` can add or remove observed trips without
+    changing the transcription of the published timetable.
 
     Per file: (1) full-line frequency rows, (2) explicit trips, (3) nested
     frequency rows sparsest-first, each residual-filling to its combined headway.
@@ -146,8 +148,11 @@ def parse_schedule():
         return []
 
     schedule_data = []
+    manual_overrides_declared = set()
+    manual_overrides_used = set()
+    manual_override_messages = []
     for filename in sorted(os.listdir(directory_path)):
-        if not filename.endswith('.json'):
+        if not filename.endswith('.json') or filename.endswith('-manual-corrections.json'):
             continue
 
         try:
@@ -164,40 +169,100 @@ def parse_schedule():
                 logging.warning(f"Schedule file '{filename}' is not an object, skipping.")
                 continue
 
+            manual_filename = f"{os.path.splitext(filename)[0]}-manual-corrections.json"
+            manual_path = os.path.join(directory_path, manual_filename)
+            manual = {}
+            if os.path.exists(manual_path):
+                try:
+                    with open(manual_path) as f:
+                        manual = json.load(f)
+                except (OSError, json.JSONDecodeError) as e:
+                    logging.warning(f"Could not load manual corrections '{manual_filename}': {e}")
+                    manual = {}
+                if not isinstance(manual, dict):
+                    logging.warning(f"Manual corrections file '{manual_filename}' is not an object, ignoring.")
+                    manual = {}
+
             route_order, index_map = _route_index_lookup(route)
             if not route_order:
                 logging.warning(f"No route order for route '{route}' ({filename}), skipping.")
                 continue
             full_span = len(route_order) - 1
 
+            # Manual removals match by departure minute because residual-fill trips
+            # can land on fractional minutes (for example 09:03:18 for an observed
+            # 09:03 removal).
+            manual_removals = {}
+            for row in manual.get("remove_trips", []):
+                origin, destination = row.get('from'), row.get('to')
+                if origin is None or destination is None:
+                    logging.warning(f"{manual_filename}: removed trip missing from/to: {row}, skipping.")
+                    continue
+                for time_str in row.get('times', []):
+                    try:
+                        departure_minute = datetime.strptime(time_str, '%H:%M').strftime('%H:%M')
+                    except (TypeError, ValueError):
+                        logging.warning(f"{manual_filename}: invalid removed trip time '{time_str}'.")
+                        continue
+                    removal_key = (origin.upper(), destination.upper(), departure_minute)
+                    descriptor = (manual_filename, 'remove', *removal_key)
+                    manual_removals[removal_key] = descriptor
+                    manual_overrides_declared.add(descriptor)
+
             # Trains already materialised for this file, used to count how many
             # pass a section's measuring point before residual fill.
             placed = []
             # Guards against emitting the same physical train twice — chiefly the
             # boundary instant two adjacent (inclusive) headway bands both produce.
-            seen_trains = set()
+            materialised_trains = {}
 
-            def add_train(origin, destination, start_dt, explicit=False):
+            def mark_manual_override_used(descriptor, actual_time):
+                if descriptor in manual_overrides_used:
+                    return
+                manual_overrides_used.add(descriptor)
+                source, action, origin, destination, requested_time = descriptor
+                manual_override_messages.append(
+                    f"{source}: {action} {origin}->{destination} at {requested_time} "
+                    f"(matched {actual_time})"
+                )
+
+            def add_train(origin, destination, start_dt, explicit=False, manual_descriptor=None):
                 o_idx = _resolve_index(index_map, origin)
                 d_idx = _resolve_index(index_map, destination)
                 if o_idx is None or d_idx is None:
                     logging.warning(f"{filename}: cannot place {origin}->{destination}, unknown stop.")
                     return
-                key = (origin, destination, start_dt)
-                if key in seen_trains:
+                removal_key = (origin.upper(), destination.upper(), start_dt.strftime('%H:%M'))
+                removal_descriptor = manual_removals.get(removal_key)
+                if removal_descriptor is not None:
+                    mark_manual_override_used(removal_descriptor, start_dt.strftime('%H:%M:%S'))
                     return
-                seen_trains.add(key)
+                key = (origin, destination, start_dt)
+                existing = materialised_trains.get(key)
+                if existing is not None:
+                    # An explicit observation may coincide exactly with a train first
+                    # produced by a frequency band. Promote that record so de-bunching
+                    # cannot discard the observed service in favour of an approximation.
+                    if explicit:
+                        existing['explicit'] = True
+                    if manual_descriptor is not None:
+                        mark_manual_override_used(manual_descriptor, start_dt.strftime('%H:%M:%S'))
+                    return
                 lo, hi = sorted((o_idx, d_idx))
                 direction = 1 if o_idx < d_idx else 0
                 placed.append({'lo': lo, 'hi': hi, 'direction': direction, 'start_dt': start_dt})
-                schedule_data.append({
+                entry = {
                     'file': filename, 'route': route, 'service_id': service_id,
                     'origin': origin, 'destination': destination,
                     'start_time': start_dt.strftime('%H:%M:%S'),
                     'direction': direction, 'lo': lo, 'hi': hi, 'explicit': explicit,
-                })
+                }
+                schedule_data.append(entry)
+                materialised_trains[key] = entry
+                if manual_descriptor is not None:
+                    mark_manual_override_used(manual_descriptor, start_dt.strftime('%H:%M:%S'))
 
-            def expand_band(origin, destination, band, explicit=False):
+            def expand_band(origin, destination, band, explicit=False, manual_descriptor=None):
                 try:
                     headway = float(band['headway'])
                     start_dt = datetime.strptime(band['start'], '%H:%M')
@@ -209,7 +274,8 @@ def parse_schedule():
                     return
                 current = start_dt
                 while current <= end_dt:
-                    add_train(origin, destination, current, explicit=explicit)
+                    add_train(origin, destination, current, explicit=explicit,
+                              manual_descriptor=manual_descriptor)
                     current += timedelta(minutes=headway)
 
             # Collect frequency rows, splitting full-line from nested.
@@ -251,6 +317,30 @@ def parse_schedule():
                         logging.warning(f"{filename}: invalid trip time '{time_str}' for {origin}->{destination}.")
                 for band in row.get('bands', []):
                     expand_band(origin, destination, band, explicit=True)
+
+            # 2b. Observed additions from the companion manual-corrections file.
+            for row in manual.get("add_trips", []):
+                origin, destination = row.get('from'), row.get('to')
+                if origin is None or destination is None:
+                    logging.warning(f"{manual_filename}: added trip missing from/to: {row}, skipping.")
+                    continue
+                for time_str in row.get('times', []):
+                    try:
+                        start_dt = datetime.strptime(time_str, '%H:%M')
+                    except (TypeError, ValueError):
+                        logging.warning(f"{manual_filename}: invalid added trip time '{time_str}'.")
+                        continue
+                    descriptor = (manual_filename, 'add', origin.upper(), destination.upper(),
+                                  start_dt.strftime('%H:%M'))
+                    manual_overrides_declared.add(descriptor)
+                    add_train(origin, destination, start_dt, explicit=True,
+                              manual_descriptor=descriptor)
+                for band in row.get('bands', []):
+                    descriptor = (manual_filename, 'add', origin.upper(), destination.upper(),
+                                  f"{band.get('start', '?')}-{band.get('end', '?')}")
+                    manual_overrides_declared.add(descriptor)
+                    expand_band(origin, destination, band, explicit=True,
+                                manual_descriptor=descriptor)
 
             # 3. Nested frequency rows: residual fill, sparsest section first.
             # Processing largest headway first (span as tiebreak) guarantees an
@@ -323,7 +413,16 @@ def parse_schedule():
         except Exception as e:
             logging.error(f"Failed to parse {filename}: {e}")
 
-    return _debunch_schedule(schedule_data)
+    schedule_data = _debunch_schedule(schedule_data)
+    for message in manual_override_messages:
+        logging.info(f"Manual schedule override used: {message}")
+    for source, action, origin, destination, requested_time in sorted(
+            manual_overrides_declared - manual_overrides_used):
+        logging.warning(
+            f"Manual schedule override unused: {source}: {action} "
+            f"{origin}->{destination} at {requested_time}"
+        )
+    return schedule_data
 
 
 # ---------------------------------------------------------------------------
